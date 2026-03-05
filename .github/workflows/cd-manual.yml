@@ -1,0 +1,33 @@
+name: CD Manual
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Conan
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "conan>=2.0"
+
+      - name: Detect Conan profile
+        run: conan profile detect --force
+
+      - name: Build package locally
+        run: conan create . --build=missing -s build_type=Release -s compiler.cppstd=23 | tee conan-create.log
+
+      - name: Upload package log
+        uses: actions/upload-artifact@v4
+        with:
+          name: conan-create-log
+          path: conan-create.log
