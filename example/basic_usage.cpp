@@ -1,23 +1,13 @@
-#include "refl/refl.hpp"
+#include "refl/demo_models.hpp"
 
-struct Person {
-    std::string name;
-    int age;
-};
-
-template <>
-struct refl::TypeInfo<Person> {
-    static consteval auto members() {
-        return std::make_tuple(
-            refl::Member{ "name", &Person::name },
-            refl::Member{ "age", &Person::age }
-        );
-    }
-};
-
+#if defined(REFL_USE_GENERATED)
+#include "refl/generated.hpp"
+#else
+#include "refl/demo_manual_typeinfo.hpp"
+#endif
 
 int main() {
-    Person p{"Alice", 25};
+    demo::Person p{"Alice", 25};
 
     // 1. 测试读取：打印所有成员
     std::cout << "--- Read Test ---\n";

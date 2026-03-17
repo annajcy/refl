@@ -57,3 +57,69 @@ jobs:
       - name: Conan create (package + test_package)
         shell: bash
         run: conan create . --build=missing -s build_type=Release -s compiler.cppstd=23
+
+  clang-codegen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Conan
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "conan>=2.0"
+
+      - name: Install clang
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+
+      - name: Detect Conan profile
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: conan profile detect --force
+
+      - name: Conan install
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: >
+          conan install .
+          --output-folder=build
+          --build=missing
+          -s build_type=Release
+          -s compiler.cppstd=23
+          -o "&:with_tests=True"
+          -o "&:with_examples=True"
+
+      - name: Configure
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset conan-release -DREFL_ENABLE_CODEGEN=ON
+
+      - name: Build
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --build --preset conan-release
+
+      - name: Test
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: ctest --preset conan-release --output-on-failure

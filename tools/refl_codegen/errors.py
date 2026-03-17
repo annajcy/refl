@@ -1,0 +1,2 @@
+class CodegenError(RuntimeError):
+    pass

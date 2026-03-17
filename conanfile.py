@@ -17,6 +17,7 @@ class ReflConan(ConanFile):
         "cmake/*",
         "include/*",
         "src/*",
+        "tools/*",
         "example/*",
         "test/*",
     )

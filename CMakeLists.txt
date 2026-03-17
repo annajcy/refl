@@ -6,6 +6,8 @@ include(CMakePackageConfigHelpers)
 include(CTest)
 include(GNUInstallDirs)
 
+find_package(Python3 COMPONENTS Interpreter)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -32,6 +34,54 @@ endif()
 
 
 option(BUILD_EXAMPLES "Build examples" ON)
+set(REFL_DEFAULT_ENABLE_CODEGEN OFF)
+if(PROJECT_IS_TOP_LEVEL AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(REFL_DEFAULT_ENABLE_CODEGEN ON)
+endif()
+option(REFL_ENABLE_CODEGEN "Generate refl metadata with clang AST during the build" ${REFL_DEFAULT_ENABLE_CODEGEN})
+
+set(REFL_CODEGEN_ACTIVE OFF)
+if(REFL_ENABLE_CODEGEN)
+  if(NOT Python3_Interpreter_FOUND)
+    message(WARNING "REFL_ENABLE_CODEGEN is ON but Python3 was not found; code generation is disabled.")
+  elseif(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(WARNING "REFL_ENABLE_CODEGEN currently requires a Clang-family compiler; code generation is disabled.")
+  else()
+    set(REFL_CODEGEN_ACTIVE ON)
+    set(REFL_CODEGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    set(REFL_CODEGEN_HEADER "${REFL_CODEGEN_OUTPUT_DIR}/refl/generated.hpp")
+    file(GLOB REFL_CODEGEN_SCRIPT_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tools/refl_codegen/*.py")
+
+    set(REFL_CODEGEN_INPUTS)
+    if(BUILD_EXAMPLES)
+      list(APPEND REFL_CODEGEN_INPUTS "${PROJECT_SOURCE_DIR}/example/basic_usage.cpp")
+    endif()
+    if(BUILD_TESTING)
+      list(APPEND REFL_CODEGEN_INPUTS "${PROJECT_SOURCE_DIR}/test/smoke_test.cpp")
+    endif()
+
+    add_custom_command(
+      OUTPUT "${REFL_CODEGEN_HEADER}"
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${REFL_CODEGEN_OUTPUT_DIR}/refl"
+      COMMAND "${Python3_EXECUTABLE}"
+              -m tools.refl_codegen
+              --clang "${CMAKE_CXX_COMPILER}"
+              --compdb "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json"
+              --out-dir "${REFL_CODEGEN_OUTPUT_DIR}"
+              --inputs ${REFL_CODEGEN_INPUTS}
+      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+      DEPENDS
+        "${PROJECT_SOURCE_DIR}/tools/__init__.py"
+        ${REFL_CODEGEN_SCRIPT_FILES}
+        "${PROJECT_SOURCE_DIR}/src/refl/demo_models.hpp"
+        ${REFL_CODEGEN_INPUTS}
+        "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json"
+      VERBATIM
+      COMMENT "Generating refl metadata with clang AST"
+    )
+    add_custom_target(refl_codegen_header DEPENDS "${REFL_CODEGEN_HEADER}")
+  endif()
+endif()
 
 add_subdirectory(src)
 

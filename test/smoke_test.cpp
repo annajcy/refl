@@ -6,33 +6,16 @@
 
 #include <gtest/gtest.h>
 
-#include "refl/refl.hpp"
+#include "refl/demo_models.hpp"
 
-namespace {
-
-struct TestPerson {
-    std::string name;
-    int age;
-};
-
-} // namespace
-
-namespace refl {
-
-template <>
-struct TypeInfo<TestPerson> {
-    static consteval auto members() {
-        return std::make_tuple(
-            Member{"name", &TestPerson::name},
-            Member{"age", &TestPerson::age}
-        );
-    }
-};
-
-} // namespace refl
+#if defined(REFL_USE_GENERATED)
+#include "refl/generated.hpp"
+#else
+#include "refl/demo_manual_typeinfo.hpp"
+#endif
 
 TEST(SmokeTest, ReflectionReadsAndWrites) {
-    TestPerson subject{"Casey", 29};
+    demo::Person subject{"Casey", 29};
 
     std::vector<std::string_view> seenNames;
     std::string nameValue;
@@ -54,7 +37,7 @@ TEST(SmokeTest, ReflectionReadsAndWrites) {
 }
 
 TEST(ReflectTest, MutatesIntsThroughForEachMember) {
-    TestPerson subject{"Jordan", 33};
+    demo::Person subject{"Jordan", 33};
 
     refl::for_each_member(subject, [](std::string_view, auto& value) {
         using MemberT = std::remove_cvref_t<decltype(value)>;
@@ -67,7 +50,24 @@ TEST(ReflectTest, MutatesIntsThroughForEachMember) {
 }
 
 TEST(ReflectTest, MembersAcceptsReferences) {
-    constexpr auto tuple = refl::members<TestPerson&>();
+    constexpr auto tuple = refl::members<demo::Person&>();
     constexpr auto count = std::tuple_size_v<decltype(tuple)>;
     EXPECT_EQ(count, 2);
+}
+
+TEST(ReflectTest, IgnoresAnnotatedFields) {
+    constexpr auto tuple = refl::members<demo::PostalAddress>();
+    constexpr auto count = std::tuple_size_v<decltype(tuple)>;
+    EXPECT_EQ(count, 2);
+}
+
+TEST(ReflectTest, SupportsMultipleNamespacedTypes) {
+    demo::Employment subject{"OpenAI", 3};
+
+    std::vector<std::string_view> seenNames;
+    refl::for_each_member(subject, [&](std::string_view name, auto&) {
+        seenNames.push_back(name);
+    });
+
+    EXPECT_EQ(seenNames, (std::vector<std::string_view>{"company", "years"}));
 }

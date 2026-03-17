@@ -6,6 +6,15 @@
 #include <type_traits>
 #include <utility>
 
+#if defined(__clang__) || defined(__GNUC__)
+#define REFL_DETAIL_ANNOTATE(value) __attribute__((annotate(value)))
+#else
+#define REFL_DETAIL_ANNOTATE(value)
+#endif
+
+#define REFL_TYPE REFL_DETAIL_ANNOTATE("refl_type")
+#define REFL_IGNORE REFL_DETAIL_ANNOTATE("refl_ignore")
+
 namespace refl {
 
 template <typename PtrType>
@@ -40,4 +49,3 @@ constexpr void for_each_member(T&& obj, Func&& f) {
 }
 
 } // namespace refl
-
